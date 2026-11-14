@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/card.jpg" width="100%" alt="A Georgian trade card: Aseem Pareek, Senior Software Engineer, London. Maker of distributed systems, event-sourced services and AI agents that are measured before they are trusted, in Java, TypeScript, Spring Boot and AWS. Fifteen years in the trade, in insurance and finance.">
+  <img src="assets/card.svg" width="100%" alt="A Georgian trade card: Aseem Pareek, Senior Software Engineer, London. Maker of distributed systems, event-sourced services and AI agents that are measured before they are trusted, in Java, TypeScript, Spring Boot and AWS. Fifteen years in the trade, in insurance and finance.">
 </p>
 
 I'm a senior software engineer in London. For 15 years I've built distributed and event-sourced systems in Java,
@@ -8,12 +8,12 @@ TypeScript, Spring Boot and AWS, mostly for insurance and finance.
 Now I work on AI engineering. I want coding agents to deliver software in small, reviewed steps, and I want AI
 systems whose answers can be checked. The three projects below are one piece of work.
 
-<p align="center"><img src="assets/rule.png" width="100%" alt=""></p>
+<p align="center"><img src="assets/rule.svg" width="100%" alt=""></p>
 
 ## The Works
 
 <p align="center">
-  <img src="assets/works.jpg" width="100%" alt="A Plan of the Works. One: claude-kits, the method. Two: claude-kits-boutique, the proof, joined to it by a road marked 'proved on'. Three: lombard, the shop, joined by a road marked 'built with'. What the proof finds returns to the method as issues.">
+  <img src="assets/works.svg" width="100%" alt="A Plan of the Works. One: claude-kits, the method. Two: claude-kits-boutique, the proof, joined to it by a road marked 'proved on'. Three: lombard, the shop, joined by a road marked 'built with'. A coach travels from the method to the proof, returns, and goes on to the shop.">
 </p>
 
 ### I. [claude-kits](https://github.com/myhts/claude-kits), the method
@@ -57,7 +57,15 @@ systems whose answers can be checked. The three projects below are one piece of 
   then a deployed shop for invited players. The [road map](https://github.com/myhts/lombard#the-road-to-opening-day)
   has every stop.
 
-<p align="center"><img src="assets/rule.png" width="100%" alt=""></p>
+<p align="center"><img src="assets/rule.svg" width="100%" alt=""></p>
+
+## The Week's Ledger
+
+<p align="center">
+  <img src="assets/ledger.svg" width="100%" alt="The week's ledger: the commits and merged pull requests of the last seven days for claude-kits, claude-kits-boutique and lombard, each with its last merged pull request, and a tally of contributions day by day for twelve weeks.">
+</p>
+
+A workflow in this repository redraws the ledger each morning from GitHub's public record.
 
 ## An Almanack of What Is Coming
 

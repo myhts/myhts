@@ -1,0 +1,56 @@
+# .github/workflows/ledger.yml: redraws assets/ledger.svg, the week's ledger on the profile page.
+# Each morning it asks GitHub for the public activity of the last seven whole days and the last twelve weeks, draws
+# the picture and commits it to main. A day with nothing new still changes the dates, so expect one commit a day.
+# On a pull request that touches the drawing code it draws the ledger without committing, to prove it still draws.
+# The token is the workflow's own: it reads public data and writes only this repository's contents.
+name: ledger
+
+on:
+  schedule:
+    - cron: "17 5 * * *" # 05:17 UTC, after the day the ledger ends on is over everywhere in the UK
+  workflow_dispatch:
+  pull_request:
+    paths: ["draw/**", ".github/workflows/ledger.yml"]
+
+permissions:
+  contents: write # commit the redrawn picture; nothing else
+
+concurrency: # two runs at once would race to push the same file
+  group: ledger-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  redraw:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # Pinned to a full commit SHA (a tag can be moved; a SHA can't), with the release as a comment.
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install the drawing tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet --disable-pip-version-check -r draw/requirements.txt
+
+      - name: Fetch the week and draw the ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" draw/fetch.py "$RUNNER_TEMP/ledger.json"
+          cat "$RUNNER_TEMP/ledger.json"
+          "$RUNNER_TEMP/venv/bin/python" draw/ledger.py "$RUNNER_TEMP/ledger.json" assets/ledger.svg
+          echo "ledger drawn: $(wc -c < assets/ledger.svg) bytes" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit the picture
+        if: github.event_name != 'pull_request'
+        run: |
+          if git diff --quiet -- assets/ledger.svg; then
+            echo "The ledger is unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/ledger.svg
+          git commit -m "Redraw the ledger for $(date -u +%F)"
+          git push
