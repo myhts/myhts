@@ -11,7 +11,6 @@ W, H = 1000, 620
 # The two roads, each from the foot of the method down to one of the other premises.
 ROAD_A = ((430, 244), (330, 300), (250, 330), (240, 420))
 ROAD_B = ((570, 244), (670, 300), (750, 330), (760, 420))
-LOOP_SECONDS = 26
 
 
 def bezier(p):
@@ -54,25 +53,76 @@ route = (
 )
 la, lb, door = length(a), length(b), b[0][0] - a[0][0]
 whole = 2 * la + door + lb
-at_proof, at_method, at_door = (100 * d / whole for d in (la, 2 * la, 2 * la + door))
+
+
+def distance_to_height(p, y, steps=400):
+    """How far down the road p the coach has gone when it reaches height y."""
+    total, last = 0.0, p[0]
+    for i in range(1, steps + 1):
+        t = i / steps
+        pt = tuple(
+            (1 - t) ** 3 * p[0][k] + 3 * (1 - t) ** 2 * t * p[1][k] + 3 * (1 - t) * t**2 * p[2][k] + t**3 * p[3][k]
+            for k in (0, 1)
+        )
+        total += ((pt[0] - last[0]) ** 2 + (pt[1] - last[1]) ** 2) ** 0.5
+        if pt[1] >= y:
+            return total
+        last = pt
+    return total
+
+
+# The coach is drawn behind the three premises, so it must be out of sight wherever one of them would half hide it.
+# It fades in only once its roof is clear of the method's lower edge, and is gone before it reaches a lower premise.
+CLEAR = distance_to_height(a, 270)  # the coach stands 21 high, and the method's lower edge is at 244
+SHORT = 12  # how far before a lower premise's top edge it must be gone
+FADE = 22  # the stretch of road over which it fades in or out
+SPEED = 34  # along the road, per second, while it is in sight
+
+# The journey as steps: (how far along the route it is at the end, its opacity then, seconds the step takes).
+steps = [
+    (CLEAR, 0, 0.5),
+    (CLEAR + FADE, 1, FADE / SPEED),
+    (la - SHORT - FADE, 1, (la - SHORT - CLEAR - 2 * FADE) / SPEED),
+    (la - SHORT, 0, FADE / SPEED),
+    (la, 0, 0.3),
+    (la, 0, 1.4),  # at the proof; it turns round here, out of sight
+    (la + SHORT, 0, 0.3),
+    (la + SHORT + FADE, 1, FADE / SPEED),
+    (2 * la - CLEAR - FADE, 1, (la - SHORT - CLEAR - 2 * FADE) / SPEED),
+    (2 * la - CLEAR, 0, FADE / SPEED),
+    (2 * la + door + CLEAR, 0, 1.2),  # behind the method and across its doorstep
+    (2 * la + door + CLEAR + FADE, 1, FADE / SPEED),
+    (whole - SHORT - FADE, 1, (lb - SHORT - CLEAR - 2 * FADE) / SPEED),
+    (whole - SHORT, 0, FADE / SPEED),
+    (whole, 0, 0.3),
+    (whole, 0, 1.4),  # at the shop
+]
+loop = sum(seconds for _, _, seconds in steps)
+TURN = 5  # the step in which it turns round
+
+# Two coaches follow the same timeline: one drawn facing left for the way out to the proof, one facing right for the
+# way back and on to the shop. Each is in sight only on its own legs. A single coach flipped by a second animation
+# could fall out of step with the movement and travel backwards.
+out_frames, back_frames, clock = ["0%{offset-distance:0%;opacity:0}"], ["0%{offset-distance:0%;opacity:0}"], 0.0
+for i, (distance, opacity, seconds) in enumerate(steps):
+    clock += seconds
+    at = f"{100 * clock / loop:.2f}%{{offset-distance:{100 * distance / whole:.2f}%;opacity:"
+    out_frames.append(f"{at}{opacity if i < TURN else 0}}}")
+    back_frames.append(f"{at}{opacity if i > TURN else 0}}}")
 
 CSS = f"""
-.coach{{offset-path:path("{route}");offset-rotate:0deg;opacity:0;animation:travel {LOOP_SECONDS}s ease-in-out infinite}}
-.facing{{animation:facing {LOOP_SECONDS}s linear infinite}}
+.coach{{offset-path:path("{route}");offset-rotate:0deg;opacity:0}}
+.out{{animation:out {loop:.1f}s linear infinite}}
+.back{{animation:back {loop:.1f}s linear infinite}}
 @supports not (offset-path:path("M0 0")){{.coach{{display:none}}}}
-@keyframes travel{{
-0%{{offset-distance:0%;opacity:0}}2%{{offset-distance:0%;opacity:1}}
-28%{{offset-distance:{at_proof:.2f}%;opacity:1}}30%{{offset-distance:{at_proof:.2f}%;opacity:0}}
-36%{{offset-distance:{at_proof:.2f}%;opacity:0}}38%{{offset-distance:{at_proof:.2f}%;opacity:1}}
-62%{{offset-distance:{at_method:.2f}%;opacity:1}}64%{{offset-distance:{at_method:.2f}%;opacity:0}}
-68%{{offset-distance:{at_door:.2f}%;opacity:0}}70%{{offset-distance:{at_door:.2f}%;opacity:1}}
-96%{{offset-distance:100%;opacity:1}}98%,100%{{offset-distance:100%;opacity:0}}}}
-@keyframes facing{{0%,33%{{transform:scaleX(-1)}}33.01%,100%{{transform:scaleX(1)}}}}
+@keyframes out{{{"".join(out_frames)}}}
+@keyframes back{{{"".join(back_frames)}}}
 """
 
-# A coach and one horse, drawn facing right, with the wheels resting on the road's centre line.
-COACH = f"""
-<g class="coach moving"><g class="facing"><g transform="translate(-15 0)">
+def coach(leg, mirror):
+    """A coach and one horse, with the wheels resting on the road's centre line. Drawn facing right; mirror turns it."""
+    return f"""
+<g class="coach {leg} moving"><g transform="scale({-1 if mirror else 1} 1)"><g transform="translate(-15 0)">
   <ellipse cx="14" cy="3" rx="32" ry="2.6" fill="{INK}" opacity=".16"/>
   <g stroke="{INK}" stroke-linejoin="round" stroke-linecap="round">
     <path d="M-13 -7 L-13 -16 Q-13 -21 -8 -21 L7 -21 Q12 -21 13 -16 L14 -7Z" fill="{WAX}" stroke-width=".9"/>
@@ -88,6 +138,7 @@ COACH = f"""
   <path d="M41 -12 L46.5 -20 L48 -22 L48.6 -20 L52 -17 L51 -15.5 L47.5 -16.5 L44.5 -9Z" fill="{INK}"/>
 </g></g></g>"""
 
+
 body = f"""
 {paper(W, H)}
 {road(ROAD_A)}{road(ROAD_B)}
@@ -96,7 +147,7 @@ body = f"""
 {text("fell-it", "three premises, and the roads between them", 18, 500, 92, fill=INK_SOFT)}
 <g transform="rotate(-27 246 272)">{text("fell-it", "proved on", 18, 246, 272)}</g>
 <g transform="rotate(27 754 272)">{text("fell-it", "built with", 18, 754, 272)}</g>
-{COACH}
+{coach("out", True)}{coach("back", False)}
 {premise(255, 112, 490, "m", "I", "The Method", "claude-kits", ["A delivery flow for Claude Code: plan it, build it test-first,", "have two agents review it. A person merges."])}
 {premise(40, 420, 400, "pr", "II", "The Proof", "claude-kits-boutique", ["The method run on an 11-service shop in five", "languages, with every number measured."])}
 {premise(560, 420, 400, "sh", "III", "The Shop", "lombard", ["An AI pawnbroker in 1750s London. It prices", "goods from real Old Bailey trials, and cites them."])}
